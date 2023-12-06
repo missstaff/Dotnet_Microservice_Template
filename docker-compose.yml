@@ -1,0 +1,85 @@
+version: '3.8'
+
+networks:
+  network:
+    driver: bridge
+
+services:
+
+  swagger-ui:
+   image: swaggerapi/swagger-ui
+   container_name: swagger_ui_container
+   ports:
+      - "81:8080"
+
+  auth_db:
+    image: postgres:latest
+    container_name: auth_db__container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: authdb
+    ports:
+      - 5434:5432
+    restart: always
+    volumes:
+      - auth_db:/var/lib/postgresql/data
+    networks:
+      - network
+
+  api_db:
+    image: postgres:latest
+    container_name: api_db__container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: phmedsaversdb
+    ports:
+      - 5433:5432
+    restart: always
+    volumes:
+      - api_db:/var/lib/postgresql/data
+    networks:
+      - network
+
+  api:
+    image: app_api
+    container_name: api__service
+    depends_on:
+      - "auth_db"
+      - "api_db"
+    ports:
+      - "8088:80"
+    restart: always
+    build:
+      context: .
+      dockerfile: ./Backend/Api/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=User ID=postgres;Password=postgres;Server=api_db;Port=5432;Database=apidb;
+      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - network
+
+  app:
+    image: web_app
+    container_name: web_app__services
+    depends_on:
+      - "api_db"
+      - "auth_db"
+    ports:
+      - "8089:80"
+    restart: always
+    build:
+      context: .
+      dockerfile: ./App/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=User ID=postgres;Password=postgres;Server=auth_db;Port=5432;Database=authdb;
+      - ASPNETCORE_URLS=http://+:80
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - network
+
+volumes:
+  auth_db:
+  api_db:
